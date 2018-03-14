@@ -11,7 +11,6 @@ MongoClient.connect('mongodb://localhost:27017/ToDoApp', (err, db) => {
   console.log('Connected to MongoDB server');
 
   db.collection('Users').find({
-    name: "Benji"
   }).toArray().then((docs) => {
     console.log('Users');
     console.log(JSON.stringify(docs,undefined,2));
