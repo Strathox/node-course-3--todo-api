@@ -1,3 +1,5 @@
+require('./config/config');
+
 const express = require('express');
 const bodyParser = require('body-parser');
 const _ = require('lodash');
@@ -10,13 +12,15 @@ var {User} = require('./models/user');
 var {authenticate} = require('./middleware/authenticate');
 
 var app = express();
-const port = process.env.PORT || 3000;
+//const port = process.env.PORT || 3000;
+const port = process.env.PORT;
 
 app.use(bodyParser.json());
 
-app.post('/todos', (req, res) => {
+app.post('/todos', authenticate, (req, res) => {
   var todo = new Todo({
-    text: req.body.text
+    text: req.body.text,
+    _creator: req.user._id
   });
 
   todo.save().then((doc) => {
@@ -40,20 +44,26 @@ app.post('/users', (req, res) => {
 });
 
 
-app.get('/todos', (req, res) => {
-  Todo.find().then((todos) => {
+app.get('/todos', authenticate, (req, res) => {
+  Todo.find({
+    _creator: req.user._id
+  }).then((todos) => {
     res.send({todos});
   }, (e) => {
     res.status(400).send(e);
   });
 })
 
-app.get('/todos/:id', (req, res) => {
+app.get('/todos/:id', authenticate, (req, res) => {
   var id = req.params.id;
   if (!ObjectID.isValid(id)) {
     return res.status(404).send();
   }
-  Todo.findById(id).then((todos) => {
+
+  Todo.findOne({
+    _id: id,
+    _creator: req.user._id
+  }).then((todos) => {
     if (todos) {
       return res.send({todos});
     }
@@ -63,6 +73,51 @@ app.get('/todos/:id', (req, res) => {
       res.status(400).send();
 });
 
+app.delete('/todos/:id', authenticate, (req, res) => {
+  var id = req.params.id;
+
+  if(!ObjectID.isValid(id)) {
+    return res.status(404).send();
+  }
+
+  Todo.findOneAndRemove({
+    _id: id,
+    _creator: req.user._id
+  }).then((todo) => {
+    if(!todo) {
+      return res.status(404).send();
+    }
+      res.send({todo});
+  }).catch((e) => {
+    res.status(400).send();
+  });
+});
+
+app.patch('/todos/:id', authenticate, (req, res) => {
+  var id = req.params.id;
+  var body = _.pick(req.body, ['text', 'completed']);
+
+  if (!ObjectID.isValid(id)) {
+    return res.status(400).send();
+  }
+
+  if (isBoolean(body.completed) && body.completed) {
+    body.completedAt = new Date().getTime();
+  } else {
+    body.completed = false;
+    body.completedAt = false;
+  }
+
+  Todo.findOneAndUpdate({_id: id, _creator: req.user._id}, {$set: body}, {new: true}).then((todo) => {
+    if (!todo) {
+      return res.status(404).send();
+    }
+
+    res.send({todo});
+  }).catch((e) => {
+    res.status(400).send();
+  });
+});
 
 app.get('/users/me', authenticate, (req, res) => {
   var token = req.header('x-auth');
@@ -99,7 +154,12 @@ app.delete('/users/me/token', authenticate, (req, res) => {
   });
 });
 
-app.listen(process.env.PORT || 3000, () => {
+//app.listen(process.env.PORT || 3000, () => {
+app.listen(port, () => {
   console.log(`Started up at port ${port}`);
   console.log(process.env.port);
-});
+});   
+
+//from package.json
+//"test": "echo \"Error: no test specified\" && exit 1"
+module.exports = {app};
