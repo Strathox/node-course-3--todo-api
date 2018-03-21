@@ -6,6 +6,6 @@ process.env.MONGOLAB_URI = 'mongodb://benchude:TangentGPE2001@ds215089.mlab.com:
 
 //mongoose.connect(process.env.MONGOLAB_URI || 'mongodb://localhost:27017/TodoApp2');
 //mongoose.connect('mongodb://localhost:27017/TodoApp2');
-mongoose.connect(process.env.MONGODB_URI);
+mongoose.connect(process.env.MONGODB_URI || process.env.MONGOLAB_URI);
 
 module.exports = {mongoose};
